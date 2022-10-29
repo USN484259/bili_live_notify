@@ -8,11 +8,15 @@ import requests
 import tempfile
 import webbrowser
 from bilibili_api import live, user, sync
-from gi.repository import Notify
+
+import gi
+gi.require_version('Notify', '0.7')
+from gi.repository import Notify, GLib
 
 script_name = os.path.basename(sys.argv[0])
 print()
 print(script_name + " by USN484259")
+print("https://github.com/USN484259/bili_live_notify")
 
 if len(sys.argv) < 2:
 	print("Usage: " + script_name + " list_file [check_interval]")
@@ -28,17 +32,36 @@ if len(sys.argv) > 2:
 live_status = {}
 for l in dd_list:
 	try:
-		rid = int(l)
+		rid = int(l.split()[0])
 		live_status[rid] = 0
 	except:
 		print("WARN: unknown live room id " + l)
 
-Notify.init(sys.argv[0])
+Notify.init(script_name)
+pending_list = {}
 
-def open_live_room(rid):
-	print(rid)
+def on_close(notification):
+	pending_list.pop(notification, None)
+
+def on_click(notification, action, rid):
 	webbrowser.open("https://live.bilibili.com/" + str(rid))
 
+def live_time_str(start_time):
+	if start_time < 0:
+		return ""
+	live_time = time.time() - start_time
+	if live_time < 0:
+		return ""
+	res = ""
+	if live_time >= 3600:
+		res = str(int(live_time / 3600)) + ':'
+
+	live_time = live_time % 3600
+	minute = int(live_time / 60)
+	second = int(live_time % 60)
+
+	res = res + "%02d:%02d" % (minute, second)
+	return res
 
 def check_room(rid):
 	cur_stat = live_status[rid]
@@ -55,30 +78,34 @@ def check_room(rid):
 		icon_file.write(response.content)
 		icon_file.close()
 
-		note = Notify.Notification.new(
+		notification = Notify.Notification.new(
 			up_info.get("name") + " 开播了",
-			live_title,
+			live_time_str(live_info.get("live_time")) + '\t' + live_title,
 			icon_file.name
 		)
-		'''
-		doesn't work for me, needs further review
-		note.add_action(
-			"action_click",
-			"让我访问",
-			open_live_room,
+
+		notification.add_action(
+			"default",
+			"让我康康",
+			on_click,
 			rid
 		)
-		'''
-		note.show()
-		
+		notification.connect("closed", on_close)
+		notification.show()
+		pending_list[notification] = None
+
 	live_status[rid] = live_info.get("live_status")
 
-while True:
-	for rid in live_status.keys():
-		try:
+def on_timer():
+	try:
+		for rid in live_status.keys():
 			check_room(rid)
-		except:
-			traceback.print_exc()
+	except:
+		traceback.print_exc()
+	return True
 
-	time.sleep(interval)
+main_loop = GLib.MainLoop()
+on_timer()
+GLib.timeout_add_seconds(interval, on_timer)
+main_loop.run()
 
