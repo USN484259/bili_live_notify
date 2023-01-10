@@ -44,7 +44,7 @@ def on_close(notification):
 	pending_list.pop(notification, None)
 
 def on_click(notification, action, rid):
-	webbrowser.open("https://live.bilibili.com/" + str(rid))
+	webbrowser.open("https://live.bilibili.com/" + str(rid), new = 1, autoraise = False)
 
 def live_time_str(start_time):
 	if start_time < 0:
