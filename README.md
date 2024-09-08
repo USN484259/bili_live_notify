@@ -1,3 +1,9 @@
+## This project is archived
+
+Migrated to [bili-archive-program](https://github.com/usn484259/bili-archive-program)/desktop/live_notify.py
+
+By the way, this is my First Python program.
+
 # Bilibili Live Notifier
 
 Show notification when given live room on Bilibili starts streaming.  
